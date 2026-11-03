@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 手機外框 + 無線訊號 + 程式碼括號 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 手機外框 -->
+    <path
+        android:pathData="M44,30 h20 a6,6 0 0 1 6,6 v36 a6,6 0 0 1 -6,6 h-20 a6,6 0 0 1 -6,-6 v-36 a6,6 0 0 1 6,-6 z"
+        android:strokeWidth="3.5"
+        android:strokeColor="#FFFFFF"
+        android:fillColor="#00000000" />
+    <!-- 聽筒 -->
+    <path
+        android:pathData="M50,35 h8"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeColor="#FFFFFF" />
+    <!-- 無線訊號 -->
+    <path
+        android:pathData="M48.3,52.3 A8,8 0 0 1 59.7,52.3"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeColor="#FFFFFF"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M44.1,48.1 A14,14 0 0 1 63.9,48.1"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeColor="#FFFFFF"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M54,58 m-2.6,0 a2.6,2.6 0 1 0 5.2,0 a2.6,2.6 0 1 0 -5.2,0"
+        android:fillColor="#FFFFFF" />
+    <!-- </> -->
+    <path
+        android:pathData="M48,65 l-3.5,3.5 l3.5,3.5 M60,65 l3.5,3.5 l-3.5,3.5 M55.5,64.5 l-3,8"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeColor="#FFFFFF"
+        android:fillColor="#00000000" />
+</vector>
