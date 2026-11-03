@@ -399,6 +399,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
           const Divider(height: 1, indent: 20, endIndent: 20),
           SwitchListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            secondary: const Icon(Icons.wifi_tethering_rounded),
+            title: const Text('無線偵錯', style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Text(switch (_enabled) {
+              true => '已開啟',
+              false => '已關閉',
+              null => '讀取中…',
+            }),
+            value: _enabled == true,
+            onChanged: _busy || !_canWrite ? null : (v) => _set('setEnabled', v),
+          ),
+          const Divider(height: 1, indent: 20, endIndent: 20),
+          SwitchListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
             secondary: const Icon(Icons.usb_rounded),
             title: const Text('USB 偵錯', style: TextStyle(fontWeight: FontWeight.w600)),
             subtitle: Text(switch (_usbEnabled) {
