@@ -23,11 +23,13 @@ import java.net.Inet4Address
 object AdbWifi {
     const val KEY = "adb_wifi_enabled"
     const val DEV_KEY = Settings.Global.DEVELOPMENT_SETTINGS_ENABLED
+    const val USB_KEY = Settings.Global.ADB_ENABLED
     private const val PREFS = "settings"
     private const val PREF_NOTIFY = "notify_enabled"
 
     fun isEnabled(ctx: Context): Boolean? = read(ctx, KEY)
     fun isDevEnabled(ctx: Context): Boolean? = read(ctx, DEV_KEY)
+    fun isUsbEnabled(ctx: Context): Boolean? = read(ctx, USB_KEY)
 
     private fun read(ctx: Context, key: String): Boolean? = try {
         Settings.Global.getInt(ctx.contentResolver, key) == 1
@@ -43,6 +45,13 @@ object AdbWifi {
     fun setEnabled(ctx: Context, on: Boolean) {
         if (on) Settings.Global.putInt(ctx.contentResolver, DEV_KEY, 1)
         Settings.Global.putInt(ctx.contentResolver, KEY, if (on) 1 else 0)
+    }
+
+    /** USB 偵錯同樣依附在開發者模式之下 */
+    @Throws(SecurityException::class)
+    fun setUsbEnabled(ctx: Context, on: Boolean) {
+        if (on) Settings.Global.putInt(ctx.contentResolver, DEV_KEY, 1)
+        Settings.Global.putInt(ctx.contentResolver, USB_KEY, if (on) 1 else 0)
     }
 
     /** 關閉開發者模式時一併關閉無線偵錯 */
@@ -136,6 +145,7 @@ object AdbWifiMonitor {
         }
         app.contentResolver.registerContentObserver(Settings.Global.getUriFor(AdbWifi.KEY), false, obs)
         app.contentResolver.registerContentObserver(Settings.Global.getUriFor(AdbWifi.DEV_KEY), false, obs)
+        app.contentResolver.registerContentObserver(Settings.Global.getUriFor(AdbWifi.USB_KEY), false, obs)
         observer = obs
     }
 

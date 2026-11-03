@@ -33,11 +33,14 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "getStatus" -> result.success(status())
-                    "setEnabled", "setDevEnabled" -> {
+                    "setEnabled", "setDevEnabled", "setUsbEnabled" -> {
                         val on = call.argument<Boolean>("on") == true
                         try {
-                            if (call.method == "setEnabled") AdbWifi.setEnabled(this, on)
-                            else AdbWifi.setDevEnabled(this, on)
+                            when (call.method) {
+                                "setEnabled" -> AdbWifi.setEnabled(this, on)
+                                "setDevEnabled" -> AdbWifi.setDevEnabled(this, on)
+                                else -> AdbWifi.setUsbEnabled(this, on)
+                            }
                             result.success(true)
                         } catch (e: SecurityException) {
                             result.error("NO_PERMISSION", e.message, null)
@@ -104,6 +107,7 @@ class MainActivity : FlutterActivity() {
         return mapOf(
             "enabled" to AdbWifi.isEnabled(this),
             "devEnabled" to AdbWifi.isDevEnabled(this),
+            "usbEnabled" to AdbWifi.isUsbEnabled(this),
             "ssid" to AdbWifiMonitor.ssid,
             "ip" to AdbWifiMonitor.ip,
             "port" to AdbWifiMonitor.port,

@@ -6,6 +6,7 @@
 
 - **主畫面**：大型圓形開關，即時顯示 Wi-Fi 名稱（SSID）、IP、Port，一鍵複製 `adb connect IP:Port`
 - **開發者模式開關**：開啟無線偵錯時會自動打開開發者模式；關閉開發者模式時，會一併關閉無線偵錯
+- **USB 偵錯開關**：開啟時會自動打開開發者模式
 - **控制中心快捷磚**：下拉控制中心點一下就能開關，長按開啟 App
 - **雲端更新**：開啟 App 時自動檢查 GitHub 最新 Release，下載後以 SHA-256 驗證，再交給系統安裝器；也可以在畫面最下方手動「檢查更新」
 - **常駐通知**：狀態列顯示圖示，通知內容是「SSID｜IP:Port」，附「開啟／關閉」和「複製連線指令」按鈕；開機後自動啟動
@@ -42,7 +43,7 @@
 
 | 項目 | 做法 |
 |---|---|
-| 開關 | 寫入 `Settings.Global` 的 `adb_wifi_enabled`、`development_settings_enabled`，需要 `WRITE_SECURE_SETTINGS` 權限 |
+| 開關 | 寫入 `Settings.Global` 的 `adb_wifi_enabled`、`adb_enabled`、`development_settings_enabled`，需要 `WRITE_SECURE_SETTINGS` 權限 |
 | Port | 有些機型（例如 HyperOS 3）沒有提供 `service.adb.tls.port`，所以 App 用 `NsdManager` 掃描 adbd 廣播的 mDNS 服務 `_adb-tls-connect._tcp`，再比對本機 IP 取得 Port |
 | SSID / IP | `ConnectivityManager.NetworkCallback`（`FLAG_INCLUDE_LOCATION_INFO`） |
 | 即時更新 | `ContentObserver` 監聽系統設定的變更；主畫面、快捷磚、通知三者共用 `AdbWifiMonitor` |

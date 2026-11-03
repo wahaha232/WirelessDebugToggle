@@ -46,6 +46,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
 
   bool? get _enabled => _s['enabled'] as bool?;
   bool? get _devEnabled => _s['devEnabled'] as bool?;
+  bool? get _usbEnabled => _s['usbEnabled'] as bool?;
   String? get _ssid => _s['ssid'] as String?;
   String? get _ip => _s['ip'] as String?;
   int? get _port => _s['port'] as int?;
@@ -381,17 +382,34 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
 
   Widget _devCard() {
     return Card(
-      child: SwitchListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-        secondary: const Icon(Icons.developer_mode_rounded),
-        title: const Text('開發者模式', style: TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(switch (_devEnabled) {
-          true => '已開啟',
-          false => '已關閉（無線偵錯會一併關閉）',
-          null => '讀取中…',
-        }),
-        value: _devEnabled == true,
-        onChanged: _busy || !_canWrite ? null : (v) => _set('setDevEnabled', v),
+      child: Column(
+        children: [
+          SwitchListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            secondary: const Icon(Icons.developer_mode_rounded),
+            title: const Text('開發者模式', style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Text(switch (_devEnabled) {
+              true => '已開啟',
+              false => '已關閉（無線偵錯會一併關閉）',
+              null => '讀取中…',
+            }),
+            value: _devEnabled == true,
+            onChanged: _busy || !_canWrite ? null : (v) => _set('setDevEnabled', v),
+          ),
+          const Divider(height: 1, indent: 20, endIndent: 20),
+          SwitchListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            secondary: const Icon(Icons.usb_rounded),
+            title: const Text('USB 偵錯', style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Text(switch (_usbEnabled) {
+              true => '已開啟',
+              false => '已關閉',
+              null => '讀取中…',
+            }),
+            value: _usbEnabled == true,
+            onChanged: _busy || !_canWrite ? null : (v) => _set('setUsbEnabled', v),
+          ),
+        ],
       ),
     );
   }
