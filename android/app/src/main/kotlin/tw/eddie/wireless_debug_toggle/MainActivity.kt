@@ -22,6 +22,10 @@ class MainActivity : FlutterActivity() {
 
     private val listener: () -> Unit = {}
 
+    // 更新下載進度（0..100），null 表示沒有在下載
+    @Volatile private var updateProgress: Int? = null
+    private var pendingUpdate: UpdateInfo? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -57,6 +61,17 @@ class MainActivity : FlutterActivity() {
                         requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), REQ_LOCATION)
                         result.success(null)
                     }
+                    "checkUpdate" -> Thread {
+                        val r: Any? = try {
+                            UpdateManager.checkLatest(this)?.also { pendingUpdate = it }?.let {
+                                mapOf("version" to it.version, "notes" to it.notes)
+                            }
+                        } catch (e: Exception) {
+                            mapOf("error" to (e.message ?: e.javaClass.simpleName))
+                        }
+                        runOnUiThread { result.success(r) }
+                    }.start()
+                    "startUpdate" -> startUpdate(result)
                     "restartScan" -> {
                         AdbWifiMonitor.restartDiscovery()
                         result.success(null)
@@ -97,7 +112,33 @@ class MainActivity : FlutterActivity() {
             "locationOn" to lm.isLocationEnabled,
             "notifyOn" to AdbWifi.isNotifyOn(this),
             "notifyAllowed" to nm.areNotificationsEnabled(),
+            "version" to UpdateManager.currentVersion(this),
+            "updateProgress" to updateProgress,
         )
+    }
+
+    /** 下載、驗證、交給系統安裝器；結果字串給 Dart 顯示 */
+    private fun startUpdate(result: MethodChannel.Result) {
+        val info = pendingUpdate ?: return result.success("no_update")
+        if (updateProgress != null) return result.success("busy")
+        if (!UpdateManager.canInstall(this)) {
+            UpdateManager.openInstallPermissionSettings(this)
+            return result.success("need_permission")
+        }
+        updateProgress = 0
+        result.success("started")
+        Thread {
+            try {
+                val apk = UpdateManager.download(this, info) { updateProgress = it }
+                runOnUiThread { UpdateManager.install(this, apk) }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    android.widget.Toast.makeText(this, "更新失敗：${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                }
+            } finally {
+                updateProgress = null
+            }
+        }.start()
     }
 
     /** Android 13+ 可直接跳出「加入控制中心」對話框 */

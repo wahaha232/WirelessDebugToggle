@@ -54,6 +54,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
   bool get _locationOn => _s['locationOn'] == true;
   bool get _notifyOn => _s['notifyOn'] == true;
   bool get _notifyAllowed => _s['notifyAllowed'] == true;
+  String? get _version => _s['version'] as String?;
+  int? get _updateProgress => _s['updateProgress'] as int?;
+
+  // 雲端更新：有新版時為 {version, notes}
+  Map<Object?, Object?>? _update;
+  bool _checking = false;
 
   @override
   void initState() {
@@ -64,6 +70,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _refresh();
       if (!_hasLocation) await _ch.invokeMethod('requestLocation');
+      _checkUpdate(silent: true);
     });
   }
 
@@ -108,6 +115,34 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
     }
   }
 
+  Future<void> _checkUpdate({bool silent = false}) async {
+    if (_checking) return;
+    setState(() => _checking = true);
+    try {
+      final r = await _ch.invokeMethod<Map<Object?, Object?>>('checkUpdate');
+      if (!mounted) return;
+      if (r != null && r['error'] != null) {
+        if (!silent) _toast('檢查更新失敗：${r['error']}');
+      } else {
+        setState(() => _update = r);
+        if (!silent && r == null) _toast('已是最新版本');
+      }
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  Future<void> _startUpdate() async {
+    final r = await _ch.invokeMethod<String>('startUpdate');
+    switch (r) {
+      case 'need_permission':
+        _toast('請允許「安裝未知應用程式」，返回後再按一次更新');
+      case 'no_update':
+        _toast('目前沒有可用的更新');
+    }
+    await _refresh();
+  }
+
   void _copy(String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
     HapticFeedback.selectionClick();
@@ -132,6 +167,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           children: [
             _header(),
+            if (_update != null) _updateCard(),
             if (_s.isNotEmpty && !_canWrite) _permissionCard(),
             const SizedBox(height: 12),
             Center(child: _powerButton(on)),
@@ -147,6 +183,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
             _devCard(),
             const SizedBox(height: 12),
             _shortcutCard(),
+            const SizedBox(height: 16),
+            _versionFooter(),
           ],
         ),
       ),
@@ -355,6 +393,65 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
         value: _devEnabled == true,
         onChanged: _busy || !_canWrite ? null : (v) => _set('setDevEnabled', v),
       ),
+    );
+  }
+
+  Widget _updateCard() {
+    final cs = Theme.of(context).colorScheme;
+    final progress = _updateProgress;
+    final notes = (_update!['notes'] as String? ?? '').trim();
+    return Card(
+      color: cs.tertiaryContainer,
+      margin: const EdgeInsets.only(top: 16),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.system_update_rounded, color: cs.onTertiaryContainer),
+                const SizedBox(width: 8),
+                Text('有新版本 v${_update!['version']}',
+                    style: TextStyle(color: cs.onTertiaryContainer, fontWeight: FontWeight.bold, fontSize: 16)),
+              ],
+            ),
+            if (notes.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(notes, maxLines: 6, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.onTertiaryContainer)),
+            ],
+            const SizedBox(height: 12),
+            if (progress != null) ...[
+              LinearProgressIndicator(value: progress / 100, borderRadius: BorderRadius.circular(4)),
+              const SizedBox(height: 6),
+              Text('下載中 $progress%', style: TextStyle(color: cs.onTertiaryContainer)),
+            ] else
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.icon(
+                  icon: const Icon(Icons.download_rounded),
+                  label: const Text('下載並更新'),
+                  onPressed: _startUpdate,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _versionFooter() {
+    final t = Theme.of(context).textTheme;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text('版本 v${_version ?? '…'}', style: t.bodySmall),
+        const SizedBox(width: 4),
+        TextButton(
+          onPressed: _checking ? null : () => _checkUpdate(),
+          child: Text(_checking ? '檢查中…' : '檢查更新'),
+        ),
+      ],
     );
   }
 

@@ -7,6 +7,7 @@
 - **主畫面**：大型圓形開關，即時顯示 Wi-Fi 名稱（SSID）、IP、Port，一鍵複製 `adb connect IP:Port`
 - **開發者模式開關**：開啟無線偵錯時會自動打開開發者模式；關閉開發者模式時，會一併關閉無線偵錯
 - **控制中心快捷磚**：下拉控制中心點一下就能開關，長按開啟 App
+- **雲端更新**：開啟 App 時自動檢查 GitHub 最新 Release，下載後以 SHA-256 驗證，再交給系統安裝器；也可以在畫面最下方手動「檢查更新」
 - **常駐通知**：狀態列顯示圖示，通知內容是「SSID｜IP:Port」，附「開啟／關閉」和「複製連線指令」按鈕；開機後自動啟動
 
 ## 系統需求
@@ -51,6 +52,19 @@
 ```bash
 flutter build apk --release --target-platform android-arm64
 ```
+
+## 發佈新版（雲端更新來源）
+
+1. 調高 `pubspec.yaml` 的 `version`，例如 `1.1.0+3` 改成 `1.2.0+4`（`+` 後面的數字也必須變大）
+2. commit 後，在 Git Bash 執行：
+
+   ```bash
+   bash tools/release.sh "這次的更新內容"
+   ```
+
+腳本會建置 APK、產生 `.apk.sha256` 校驗檔、push，然後建立 GitHub Release。App 只接受本 repo Release 中附有 `.sha256` 的 APK。
+
+APK 以這台電腦的 Android debug 金鑰簽章。換電腦建置時，必須用同一把金鑰，否則新版無法覆蓋安裝。
 
 UI 主題使用 [flex_color_scheme](https://pub.dev/packages/flex_color_scheme)（MIT 授權）。
 
