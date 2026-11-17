@@ -75,6 +75,14 @@ class MainActivity : FlutterActivity() {
                         runOnUiThread { result.success(r) }
                     }.start()
                     "startUpdate" -> startUpdate(result)
+                    "openWifiPanel" -> {
+                        try {
+                            startActivity(AdbWifi.wifiPanelIntent())
+                        } catch (e: android.content.ActivityNotFoundException) {
+                            startActivity(AdbWifi.wifiSettingsIntent())
+                        }
+                        result.success(null)
+                    }
                     "restartScan" -> {
                         AdbWifiMonitor.restartDiscovery()
                         result.success(null)
@@ -108,6 +116,7 @@ class MainActivity : FlutterActivity() {
             "enabled" to AdbWifi.isEnabled(this),
             "devEnabled" to AdbWifi.isDevEnabled(this),
             "usbEnabled" to AdbWifi.isUsbEnabled(this),
+            "wifiOn" to AdbWifi.isWifiOn(this),
             "ssid" to AdbWifiMonitor.ssid,
             "ip" to AdbWifiMonitor.ip,
             "port" to AdbWifiMonitor.port,

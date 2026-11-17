@@ -41,12 +41,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
   Map<Object?, Object?> _s = const {};
   Timer? _timer;
   bool _busy = false;
-  late final AnimationController _pulse =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))..repeat();
+  late final AnimationController _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))
+    ..repeat();
 
   bool? get _enabled => _s['enabled'] as bool?;
   bool? get _devEnabled => _s['devEnabled'] as bool?;
   bool? get _usbEnabled => _s['usbEnabled'] as bool?;
+  bool? get _wifiOn => _s['wifiOn'] as bool?;
   String? get _ssid => _s['ssid'] as String?;
   String? get _ip => _s['ip'] as String?;
   int? get _port => _s['port'] as int?;
@@ -160,32 +161,21 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
   @override
   Widget build(BuildContext context) {
     final on = _enabled == true;
-    final addr = (on && _ip != null && _port != null) ? '$_ip:$_port' : null;
-
     return Scaffold(
       body: SafeArea(
+        // 內容設計成一個畫面放得下；字體放大或小螢幕時仍可捲動
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
           children: [
             _header(),
             if (_update != null) _updateCard(),
             if (_s.isNotEmpty && !_canWrite) _permissionCard(),
             const SizedBox(height: 12),
-            Center(child: _powerButton(on)),
-            const SizedBox(height: 16),
-            _stateLabel(on),
-            const SizedBox(height: 28),
-            _infoCard(on),
-            if (addr != null) ...[
-              const SizedBox(height: 12),
-              _commandCard(addr),
-            ],
+            _heroCard(on),
             const SizedBox(height: 12),
-            _devCard(),
-            const SizedBox(height: 12),
-            _shortcutCard(),
-            const SizedBox(height: 16),
-            _versionFooter(),
+            _toggleGrid(),
+            const SizedBox(height: 8),
+            _footer(),
           ],
         ),
       ),
@@ -197,13 +187,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
     return Row(
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('無線偵錯', style: t.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
-              Text('Wireless Debugging', style: t.bodySmall?.copyWith(letterSpacing: 1.2)),
-            ],
-          ),
+          child: Text('無線偵錯', style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
         ),
         IconButton.filledTonal(
           tooltip: '重新掃描 Port',
@@ -217,14 +201,96 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
     );
   }
 
+  /// 主卡片：左邊圓形開關，右邊狀態與連線資訊
+  Widget _heroCard(bool on) {
+    final cs = Theme.of(context).colorScheme;
+    final t = Theme.of(context).textTheme;
+    final addr = (on && _ip != null && _port != null) ? '$_ip:$_port' : null;
+    final stateText = switch (_enabled) {
+      true => '已開啟',
+      false => '已關閉',
+      null => '讀取中…',
+    };
+    final ipLine = _ip ?? (_wifiOn == false ? 'Wi-Fi 已關閉' : '未連線 Wi-Fi');
+    final portLine = !on || _ip == null ? null : 'Port ${_port?.toString() ?? '搜尋中…'}';
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 12, 16, 12),
+        child: Row(
+          children: [
+            _powerButton(on),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 250),
+                    style: t.headlineSmall!.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: on ? cs.primary : cs.onSurfaceVariant,
+                    ),
+                    child: Text(stateText),
+                  ),
+                  Text(_canWrite ? '點圓形按鈕切換' : '授權後即可切換', style: t.bodySmall),
+                  const SizedBox(height: 10),
+                  _miniInfo(Icons.wifi_rounded, _ssidText()),
+                  const SizedBox(height: 4),
+                  _miniInfo(Icons.lan_rounded, ipLine),
+                  if (portLine != null) ...[const SizedBox(height: 4), _miniInfo(Icons.tag_rounded, portLine)],
+                  if (addr != null) ...[
+                    const SizedBox(height: 8),
+                    FilledButton.tonalIcon(
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                      icon: const Icon(Icons.content_copy_rounded, size: 18),
+                      label: const Text('複製連線指令'),
+                      onPressed: () => _copy('adb connect $addr', '連線指令'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _miniInfo(IconData icon, String text) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: cs.onSurfaceVariant),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _powerButton(bool on) {
     final cs = Theme.of(context).colorScheme;
     final enabled = _canWrite && !_busy && _enabled != null;
-    const size = 168.0;
+    const size = 112.0;
 
     return SizedBox(
-      width: size * 1.45,
-      height: size * 1.45,
+      width: size * 1.3,
+      height: size * 1.3,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -235,8 +301,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
               builder: (_, _) {
                 final v = Curves.easeOut.transform(_pulse.value);
                 return Container(
-                  width: size * (1 + 0.45 * v),
-                  height: size * (1 + 0.45 * v),
+                  width: size * (1 + 0.3 * v),
+                  height: size * (1 + 0.3 * v),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: cs.primary.withValues(alpha: 0.35 * (1 - v)),
@@ -262,8 +328,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
               boxShadow: [
                 BoxShadow(
                   color: (on ? cs.primary : Colors.black).withValues(alpha: on ? 0.45 : 0.15),
-                  blurRadius: on ? 32 : 12,
-                  offset: const Offset(0, 8),
+                  blurRadius: on ? 24 : 10,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
@@ -276,16 +342,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
                 child: Center(
                   child: _busy
                       ? SizedBox(
-                          width: 48,
-                          height: 48,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 4,
-                            color: on ? cs.onPrimary : cs.primary,
-                          ),
+                          width: 36,
+                          height: 36,
+                          child: CircularProgressIndicator(strokeWidth: 3.5, color: on ? cs.onPrimary : cs.primary),
                         )
                       : Icon(
                           on ? Icons.wifi_tethering_rounded : Icons.wifi_tethering_off_rounded,
-                          size: 72,
+                          size: 52,
                           color: on ? cs.onPrimary : cs.onSurfaceVariant,
                         ),
                 ),
@@ -297,133 +360,106 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
     );
   }
 
-  Widget _stateLabel(bool on) {
-    final cs = Theme.of(context).colorScheme;
-    final t = Theme.of(context).textTheme;
-    final text = switch (_enabled) {
-      true => '已開啟',
-      false => '已關閉',
-      null => '讀取中…',
-    };
+  /// Android 10 起 App 無法直接開關 Wi-Fi／切換網路，改叫出系統 Wi-Fi 面板
+  void _openWifiPanel() {
+    HapticFeedback.selectionClick();
+    _ch.invokeMethod('openWifiPanel');
+  }
+
+  Future<void> _toggleNotify(bool v) async {
+    HapticFeedback.selectionClick();
+    await _ch.invokeMethod('setNotify', {'on': v});
+    await _refresh();
+  }
+
+  String _onOff(bool? v) => switch (v) {
+    true => '已開啟',
+    false => '已關閉',
+    null => '讀取中…',
+  };
+
+  /// 3×2 快捷方塊
+  Widget _toggleGrid() {
+    final writable = !_busy && _canWrite;
+    final wifiOn = _wifiOn;
+    final tiles = <Widget>[
+      _Tile(
+        icon: wifiOn == false ? Icons.wifi_off_rounded : Icons.wifi_rounded,
+        title: 'Wi-Fi',
+        subtitle: switch (wifiOn) {
+          true => _ssid ?? '已開啟',
+          false => '已關閉',
+          null => '讀取中…',
+        },
+        hint: '點一下開關／切換網路',
+        on: wifiOn == true,
+        onTap: wifiOn == null ? null : _openWifiPanel,
+      ),
+      _Tile(
+        icon: _enabled == true ? Icons.wifi_tethering_rounded : Icons.wifi_tethering_off_rounded,
+        title: '無線偵錯',
+        subtitle: _onOff(_enabled),
+        on: _enabled == true,
+        onTap: writable && _enabled != null ? () => _set('setEnabled', _enabled != true) : null,
+      ),
+      _Tile(
+        icon: Icons.developer_mode_rounded,
+        title: '開發者模式',
+        subtitle: _onOff(_devEnabled),
+        on: _devEnabled == true,
+        onTap: writable && _devEnabled != null ? () => _set('setDevEnabled', _devEnabled != true) : null,
+      ),
+      _Tile(
+        icon: Icons.usb_rounded,
+        title: 'USB 偵錯',
+        subtitle: _onOff(_usbEnabled),
+        on: _usbEnabled == true,
+        onTap: writable && _usbEnabled != null ? () => _set('setUsbEnabled', _usbEnabled != true) : null,
+      ),
+      _Tile(
+        icon: Icons.notifications_active_rounded,
+        title: '常駐通知',
+        subtitle: _notifyOn && !_notifyAllowed ? '通知權限未開啟' : _onOff(_notifyOn),
+        on: _notifyOn,
+        onTap: () => _toggleNotify(!_notifyOn),
+      ),
+      _Tile(icon: Icons.dashboard_customize_rounded, title: '控制中心', subtitle: '加入快捷磚', on: false, onTap: _addTile),
+    ];
     return Column(
       children: [
-        AnimatedDefaultTextStyle(
-          duration: const Duration(milliseconds: 250),
-          style: t.headlineSmall!.copyWith(
-            fontWeight: FontWeight.w700,
-            color: on ? cs.primary : cs.onSurfaceVariant,
+        for (var i = 0; i < tiles.length; i += 2) ...[
+          if (i > 0) const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: tiles[i]),
+              const SizedBox(width: 10),
+              Expanded(child: tiles[i + 1]),
+            ],
           ),
-          child: Text(text),
-        ),
-        const SizedBox(height: 4),
-        Text(_canWrite ? '點一下圓形按鈕切換' : '授權後即可切換', style: t.bodySmall),
+        ],
       ],
     );
   }
 
-  Widget _infoCard(bool on) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          children: [
-            _InfoRow(icon: Icons.wifi_rounded, label: 'Wi-Fi', value: _ssidText()),
-            _InfoRow(icon: Icons.lan_rounded, label: 'IP 位址', value: _ip ?? '未連線 Wi-Fi'),
-            _InfoRow(
-              icon: Icons.tag_rounded,
-              label: 'Port',
-              value: !on ? '—' : (_port?.toString() ?? '搜尋中…'),
-              mono: true,
-            ),
-          ],
-        ),
-      ),
-    );
+  Future<void> _addTile() async {
+    final r = await _ch.invokeMethod<String>('addTile');
+    _toast(switch (r) {
+      'added' => '已加入控制中心',
+      'already' => '已經在控制中心裡了',
+      'declined' => '已取消',
+      _ => '此系統不支援自動加入，請下拉控制中心 → 編輯，手動加入「無線偵錯」',
+    });
   }
 
-  Widget _commandCard(String addr) {
-    final cs = Theme.of(context).colorScheme;
-    final cmd = 'adb connect $addr';
-    return Card(
-      color: cs.primaryContainer,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: () => _copy(cmd, '連線指令'),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('電腦連線指令',
-                        style: TextStyle(color: cs.onPrimaryContainer, fontSize: 12, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 6),
-                    Text(
-                      cmd,
-                      style: TextStyle(
-                        color: cs.onPrimaryContainer,
-                        fontFamily: 'monospace',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.content_copy_rounded, color: cs.onPrimaryContainer),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _devCard() {
-    return Card(
-      child: Column(
-        children: [
-          SwitchListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            secondary: const Icon(Icons.developer_mode_rounded),
-            title: const Text('開發者模式', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text(switch (_devEnabled) {
-              true => '已開啟',
-              false => '已關閉（無線偵錯會一併關閉）',
-              null => '讀取中…',
-            }),
-            value: _devEnabled == true,
-            onChanged: _busy || !_canWrite ? null : (v) => _set('setDevEnabled', v),
-          ),
-          const Divider(height: 1, indent: 20, endIndent: 20),
-          SwitchListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            secondary: const Icon(Icons.wifi_tethering_rounded),
-            title: const Text('無線偵錯', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text(switch (_enabled) {
-              true => '已開啟',
-              false => '已關閉',
-              null => '讀取中…',
-            }),
-            value: _enabled == true,
-            onChanged: _busy || !_canWrite ? null : (v) => _set('setEnabled', v),
-          ),
-          const Divider(height: 1, indent: 20, endIndent: 20),
-          SwitchListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            secondary: const Icon(Icons.usb_rounded),
-            title: const Text('USB 偵錯', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text(switch (_usbEnabled) {
-              true => '已開啟',
-              false => '已關閉',
-              null => '讀取中…',
-            }),
-            value: _usbEnabled == true,
-            onChanged: _busy || !_canWrite ? null : (v) => _set('setUsbEnabled', v),
-          ),
-        ],
-      ),
+  Widget _footer() {
+    final t = Theme.of(context).textTheme;
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text('v${_version ?? '…'}', style: t.bodySmall),
+        TextButton(onPressed: _checking ? null : () => _checkUpdate(), child: Text(_checking ? '檢查中…' : '檢查更新')),
+      ],
     );
   }
 
@@ -443,13 +479,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
               children: [
                 Icon(Icons.system_update_rounded, color: cs.onTertiaryContainer),
                 const SizedBox(width: 8),
-                Text('有新版本 v${_update!['version']}',
-                    style: TextStyle(color: cs.onTertiaryContainer, fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(
+                  '有新版本 v${_update!['version']}',
+                  style: TextStyle(color: cs.onTertiaryContainer, fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               ],
             ),
             if (notes.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text(notes, maxLines: 6, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.onTertiaryContainer)),
+              Text(
+                notes,
+                maxLines: 6,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: cs.onTertiaryContainer),
+              ),
             ],
             const SizedBox(height: 12),
             if (progress != null) ...[
@@ -471,62 +514,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
     );
   }
 
-  Widget _versionFooter() {
-    final t = Theme.of(context).textTheme;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text('版本 v${_version ?? '…'}', style: t.bodySmall),
-        const SizedBox(width: 4),
-        TextButton(
-          onPressed: _checking ? null : () => _checkUpdate(),
-          child: Text(_checking ? '檢查中…' : '檢查更新'),
-        ),
-      ],
-    );
-  }
-
-  Widget _shortcutCard() {
-    return Card(
-      child: Column(
-        children: [
-          SwitchListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            secondary: const Icon(Icons.notifications_active_rounded),
-            title: const Text('常駐通知', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text(
-              _notifyOn && !_notifyAllowed ? '通知權限未開啟，請到系統設定允許' : '狀態列顯示圖示與 IP:Port，可直接開關',
-            ),
-            value: _notifyOn,
-            onChanged: (v) async {
-              HapticFeedback.selectionClick();
-              await _ch.invokeMethod('setNotify', {'on': v});
-              await _refresh();
-            },
-          ),
-          const Divider(height: 1, indent: 20, endIndent: 20),
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            leading: const Icon(Icons.dashboard_customize_rounded),
-            title: const Text('加入控制中心快捷磚', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('下拉控制中心一鍵開關，長按開啟本 App'),
-            trailing: const Icon(Icons.add_circle_outline_rounded),
-            onTap: () async {
-              final r = await _ch.invokeMethod<String>('addTile');
-              _toast(switch (r) {
-                'added' => '已加入控制中心',
-                'already' => '已經在控制中心裡了',
-                'declined' => '已取消',
-                _ => '此系統不支援自動加入，請下拉控制中心 → 編輯，手動加入「無線偵錯」',
-              });
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   String _ssidText() {
+    if (_wifiOn == false) return 'Wi-Fi 已關閉';
     if (_ip == null) return '未連線 Wi-Fi';
     if (_ssid != null) return _ssid!;
     if (!_hasLocation) return '需要位置權限';
@@ -548,15 +537,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
               children: [
                 Icon(Icons.lock_outline_rounded, color: cs.onErrorContainer),
                 const SizedBox(width: 8),
-                Text('尚未授權切換開關',
-                    style: TextStyle(color: cs.onErrorContainer, fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(
+                  '尚未授權切換開關',
+                  style: TextStyle(color: cs.onErrorContainer, fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               ],
             ),
             const SizedBox(height: 8),
             Text('請在電腦上執行一次（需先開啟「USB 偵錯（安全設定）」）：', style: TextStyle(color: cs.onErrorContainer)),
             const SizedBox(height: 8),
-            SelectableText(_grantCmd,
-                style: TextStyle(color: cs.onErrorContainer, fontFamily: 'monospace', fontSize: 12)),
+            SelectableText(
+              _grantCmd,
+              style: TextStyle(color: cs.onErrorContainer, fontFamily: 'monospace', fontSize: 12),
+            ),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
@@ -572,46 +565,82 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.icon, required this.label, required this.value, this.mono = false});
+/// 快捷方塊：開啟時填滿主色容器，關閉時為灰底
+class _Tile extends StatelessWidget {
+  const _Tile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.on,
+    required this.onTap,
+    this.hint,
+  });
 
   final IconData icon;
-  final String label;
-  final String value;
-  final bool mono;
+  final String title;
+  final String subtitle;
+  final String? hint;
+  final bool on;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final t = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(color: cs.secondaryContainer, borderRadius: BorderRadius.circular(14)),
-            child: Icon(icon, color: cs.onSecondaryContainer),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: t.labelMedium?.copyWith(color: cs.onSurfaceVariant)),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: t.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontFamily: mono ? 'monospace' : null,
+    final fg = on ? cs.onPrimaryContainer : cs.onSurface;
+    return Tooltip(
+      message: hint ?? '',
+      child: Material(
+        color: on ? cs.primaryContainer : cs.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap == null
+              ? null
+              : () {
+                  HapticFeedback.selectionClick();
+                  onTap!();
+                },
+          child: Opacity(
+            opacity: onTap == null ? 0.5 : 1,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 14, 10, 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: on ? cs.primary : cs.surfaceContainerHighest,
+                    ),
+                    child: Icon(icon, size: 22, color: on ? cs.onPrimary : cs.onSurfaceVariant),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: fg),
+                        ),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.bodySmall?.copyWith(color: fg.withValues(alpha: 0.8)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

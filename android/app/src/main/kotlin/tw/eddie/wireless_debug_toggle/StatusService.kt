@@ -63,6 +63,7 @@ class StatusService : Service() {
         val ssid = AdbWifiMonitor.ssid
 
         val text = when {
+            !AdbWifi.isWifiOn(this) -> "Wi-Fi 已關閉"
             ip == null -> "未連線 Wi-Fi"
             !on -> listOfNotNull(ssid, "點「開啟」啟用").joinToString("｜")
             else -> listOfNotNull(ssid, port?.let { "$ip:$it" } ?: "$ip（搜尋 Port…）").joinToString("｜")
@@ -88,6 +89,11 @@ class StatusService : Service() {
         if (on && ip != null && port != null) {
             b.addAction(action("複製連線指令", ActionReceiver.COPY, 2))
         }
+        // 叫出系統 Wi-Fi 面板：開關 Wi-Fi、切換網路
+        val wifi = PendingIntent.getActivity(
+            this, 3, AdbWifi.wifiPanelIntent(), PendingIntent.FLAG_IMMUTABLE
+        )
+        b.addAction(Notification.Action.Builder(null, "Wi-Fi", wifi).build())
         return b.build()
     }
 

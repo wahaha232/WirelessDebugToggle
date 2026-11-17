@@ -1,7 +1,10 @@
 package tw.eddie.wireless_debug_toggle
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.net.ConnectivityManager
@@ -61,6 +64,20 @@ object AdbWifi {
         Settings.Global.putInt(ctx.contentResolver, DEV_KEY, if (on) 1 else 0)
     }
 
+    fun isWifiOn(ctx: Context): Boolean =
+        ctx.getSystemService(WifiManager::class.java).isWifiEnabled
+
+    /**
+     * Android 10 起一般 App 不能直接開關 Wi-Fi／切換網路，
+     * 改叫出系統的 Wi-Fi 面板（開關＋網路清單）。minSdk 30 一定有這個面板。
+     */
+    fun wifiPanelIntent(): Intent =
+        Intent(Settings.Panel.ACTION_WIFI).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+    /** ROM 若拿掉面板時的備案：Wi-Fi 設定頁 */
+    fun wifiSettingsIntent(): Intent =
+        Intent(Settings.ACTION_WIFI_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
     fun isNotifyOn(ctx: Context) =
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(PREF_NOTIFY, false)
 
@@ -88,6 +105,7 @@ object AdbWifiMonitor {
 
     private var netCallback: ConnectivityManager.NetworkCallback? = null
     private var observer: ContentObserver? = null
+    private var wifiReceiver: BroadcastReceiver? = null
     private var multicastLock: WifiManager.MulticastLock? = null
     private var discovery: NsdManager.DiscoveryListener? = null
 
@@ -147,11 +165,21 @@ object AdbWifiMonitor {
         app.contentResolver.registerContentObserver(Settings.Global.getUriFor(AdbWifi.DEV_KEY), false, obs)
         app.contentResolver.registerContentObserver(Settings.Global.getUriFor(AdbWifi.USB_KEY), false, obs)
         observer = obs
+        // Wi-Fi 開關狀態變更（系統廣播，不需要額外權限）
+        val rcv = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, i: Intent) {
+                notifyChanged()
+            }
+        }
+        app.registerReceiver(rcv, IntentFilter(WifiManager.WIFI_STATE_CHANGED_ACTION), Context.RECEIVER_NOT_EXPORTED)
+        wifiReceiver = rcv
     }
 
     private fun stop() {
         observer?.let { app.contentResolver.unregisterContentObserver(it) }
         observer = null
+        wifiReceiver?.let { runCatching { app.unregisterReceiver(it) } }
+        wifiReceiver = null
         stopDiscovery()
         unregisterNetwork()
     }
